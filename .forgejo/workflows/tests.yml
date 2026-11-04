@@ -1,0 +1,16 @@
+name: tests
+on:
+  push:
+    branches: [19.x]
+  pull_request:
+    branches: [19.x]
+
+jobs:
+  shellcheck:
+    runs-on: docker
+    container:
+      image: koalaman/shellcheck-alpine:stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck conf.d/main
+        run: shellcheck -x conf.d/main

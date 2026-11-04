@@ -1,0 +1,61 @@
+# Instance description of a Laravel appliance, IPv6 first (docs/spec.md
+# in the keel repository). Copy to /etc/keel/instance.yaml and create
+# the secret files (mode 0600, owned by root) before the first boot:
+#
+#   /etc/keel/secrets/root_password
+#   /etc/keel/secrets/db_password     the MariaDB application user
+#   /etc/keel/secrets/app_key         Laravel APP_KEY (base64:...)
+#
+# The first boot runs `composer create-project laravel/laravel` into
+# /var/www/laravel, writes .env from these values, and runs the initial
+# migration against the MariaDB database the parent layer carries.
+version: 1
+
+instance:
+  hostname: laravel
+  fqdn: laravel.example.org
+
+network:
+  managed_by: host
+  interfaces:
+    eth0:
+      ipv6:
+        method: auto
+
+tls:
+  acme:
+    enabled: true
+    email: admin@example.org
+
+secrets:
+  root_password:
+    file: /etc/keel/secrets/root_password
+  db_password:
+    file: /etc/keel/secrets/db_password
+  app_key:
+    file: /etc/keel/secrets/app_key
+
+app:
+  options:
+    app_name: Laravel
+    app_env: production
+    app_debug: false
+    db_name: laravel
+    db_user: laravel
+
+database:
+  server:
+    engine: mariadb
+    role: standalone
+    listen:
+      - "::1"
+      - 127.0.0.1
+
+hub:
+  api_key: skip
+
+security:
+  alerts: skip
+  updates_at_first_boot: skip
+
+first_login_wizard: false

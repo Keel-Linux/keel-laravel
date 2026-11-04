@@ -1,0 +1,19 @@
+#include <turnkey/base>
+
+/* Laravel needs Composer (PHP dependency manager), Node.js and npm
+   (frontend tooling: Vite, Mix), and several PHP extensions the
+   framework checks on boot. The parent (lnmp) already carries
+   php-fpm, php-mysql, php-common and nginx. */
+composer
+nodejs
+npm
+php-xml
+php-curl
+php-zip
+php-mbstring
+php-cli
+
+/* project packages, from the Keel archive (archive.keellinux.org) */
+inithooks
+confconsole
+keel

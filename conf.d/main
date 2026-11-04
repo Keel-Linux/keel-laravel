@@ -1,0 +1,58 @@
+#!/bin/bash -ex
+# Laravel PHP framework appliance.
+#
+# The parent (lnmp) configured nginx, PHP-FPM, and MariaDB. This script
+# verifies the Laravel-specific packages, drops the nginx site, and
+# prepares the skeleton directory the first boot will populate with
+# `composer create-project`.
+
+# 1. Laravel's PHP extensions are installed.
+for pkg in php-xml php-curl php-zip php-mbstring php-cli; do
+    dpkg-query -W -f '${Status}' "$pkg" | grep -qx 'install ok installed'
+done
+
+# 2. Composer and Node.js tooling are installed.
+dpkg-query -W -f '${Status}' composer | grep -qx 'install ok installed'
+dpkg-query -W -f '${Status}' nodejs   | grep -qx 'install ok installed'
+dpkg-query -W -f '${Status}' npm      | grep -qx 'install ok installed'
+
+# 3. The Laravel skeleton directory exists with correct ownership.
+install -d -m 0755 -o www-data -g www-data /var/www/laravel
+install -d -m 0755 -o www-data -g www-data /var/www/laravel/public
+
+# 4. The nginx site configuration is in place.
+[ -f /etc/nginx/sites-available/laravel ]
+ln -sf /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/laravel
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+
+# 5. A placeholder index so nginx answers before the first boot runs
+#    composer create-project.
+cat > /var/www/laravel/public/index.html <<'PLACEHOLDER'
+<!doctype html><title>Laravel</title><p>First boot has not run yet.
+PLACEHOLDER
+chown www-data:www-data /var/www/laravel/public/index.html
+
+# 6. Project packages: upgrade from the Keel archive.
+export DEBIAN_FRONTEND=noninteractive
+apt-get update --error-on=any
+apt-get install -y --only-upgrade \
+    -o Dpkg::Options::=--force-confdef \
+    -o Dpkg::Options::=--force-confold \
+    inithooks confconsole keel
+
+[[ $(dpkg-query -W -f '${Status}\n' inithooks confconsole keel \
+    | grep -c '^install ok installed$') -eq 3 ]]
+
+/usr/local/lib/keel-build/keel-project-packages inithooks confconsole keel
+rm -rf /usr/local/lib/keel-build
+dpkg-query -W -f '${Package} ${Version} ${Status}\n' inithooks confconsole keel
+
+# 7. No build time sources.
+rm -rf /var/lib/apt/lists/*
+if grep -rlsE 'trixie-staging|/srv/keel-apt|l=Keel Linux staging|keel-staging' /etc/apt/sources.list \
+    /etc/apt/sources.list.d /etc/apt/preferences /etc/apt/preferences.d /etc/apt/keyrings; then
+    echo "the apt files above name the build host's staging archive" >&2
+    exit 1
+fi
+[ ! -e /usr/local/lib/keel-build ]
